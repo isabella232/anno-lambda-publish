@@ -157,6 +157,7 @@ def sync_anno_docs_files(quiet=None):
 def _tweak_aws_command(path):
     """
     tweak aws command line tool to use system python in lambda environment
+    via: https://alestic.com/2016/11/aws-lambda-awscli/
     """
     INPUT_PATH = os.path.join(cwd, path)
     local('perl -pi -e \'$_ ="#!/usr/bin/python\n" if $. == 1\' %s' % (
