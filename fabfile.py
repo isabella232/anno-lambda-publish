@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # _*_ coding:utf-8 _*_
-from fabric.api import local, lcd, prefix, task, execute
+from fabric.api import local, lcd, prefix, task, execute, quiet
 from contextlib import contextmanager as _contextmanager
 import os
 import logging
@@ -160,6 +160,6 @@ def _tweak_aws_command(path):
     via: https://alestic.com/2016/11/aws-lambda-awscli/
     """
     INPUT_PATH = os.path.join(cwd, path)
-    local('perl -pi -e \'$_ ="#!/usr/bin/python\n" if $. == 1\' %s' % (
-        INPUT_PATH))
-
+    with quiet():
+        local('perl -pi -e \'$_ ="#!/usr/bin/python\n" if $. == 1\' %s' % (
+              INPUT_PATH))

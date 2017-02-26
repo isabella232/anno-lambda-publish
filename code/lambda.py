@@ -13,6 +13,8 @@ s3 = boto3.resource('s3')
 
 logger = logging.getLogger()
 logger.setLevel(app_config.LOG_LEVEL)
+logging.getLogger('boto3').setLevel(logging.WARNING)
+logging.getLogger('botocore').setLevel(logging.WARNING)
 
 env = Environment(loader=FileSystemLoader('templates'))
 
@@ -21,19 +23,35 @@ def copy_stage_to_prod():
     """
     copy recursively changing the acl accordingly
     """
-    src_bucket = s3.Bucket(app_config.SRC_BUCKET)
-    dst_bucket = s3.Bucket(app_config.DST_BUCKET)
-    s3_src = 's3://%s/%s/%s' % (
-        src_bucket,
+    s3_src = "s3://%s/%s%s" % (
+        app_config.SRC_BUCKET,
         app_config.FACTCHECKS_DIRECTORY_PREFIX,
         app_config.PREVIEW_FACTCHECK)
-    s3_dst = 's3://%s/%s/%s' % (
-        dst_bucket,
+    s3_dst = "s3://%s/%s%s" % (
+        app_config.DST_BUCKET,
         app_config.FACTCHECKS_DIRECTORY_PREFIX,
         app_config.CURRENT_FACTCHECK)
     command = ['./aws', 's3', 'cp', '--acl', 'public-read', '--recursive',
-               s3_src, s3_dst]
-    logger.info(subprocess.check_output(command, stderr=subprocess.STDOUT))
+               '--quiet', s3_src, s3_dst]
+    try:
+        subprocess.check_output(command, stderr=subprocess.STDOUT)
+        logger.info('Copied recursively from stage')
+    except subprocess.CalledProcessError, e:
+        logger.error(e.output)
+        raise e
+
+
+def make_context():
+    """
+    make required context from app_config
+    """
+    context = {}
+    context['DEPLOYMENT_TARGET'] = app_config.DEPLOYMENT_TARGET
+    context['FACTCHECKS_DIRECTORY_PREFIX'] = app_config.FACTCHECKS_DIRECTORY_PREFIX
+    context['PRODUCTION_S3_BUCKET'] = app_config.DST_BUCKET
+    context['CURRENT_FACTCHECK'] = app_config.CURRENT_FACTCHECK
+    context['AUTOINIT_LOADER'] = app_config.AUTOINIT_LOADER
+    return context
 
 
 def upload_template_contents(context, template, s3filename=None):
@@ -50,21 +68,32 @@ def upload_template_contents(context, template, s3filename=None):
         gz.write(markup)
     # Reset buffer to beginning
     f.seek(0)
-    s3Key = '%s/%s' % (app_config.DST_ANNO_PATH, s3filename)
-    bucket.put_object(Key=s3Key,
-                      Body=f.read(),
-                      ContentType='text/html',
-                      ContentEncoding='gzip',
-                      CacheControl='max-age=%s' % app_config.DEFAULT_MAX_AGE)
+    dst_bucket = s3.Bucket(app_config.DST_BUCKET)
+    dst_key = '%s/%s/%s' % (
+        app_config.FACTCHECKS_DIRECTORY_PREFIX,
+        app_config.CURRENT_FACTCHECK,
+        s3filename)
+    dst_bucket.put_object(Key=dst_key,
+                          Body=f.read(),
+                          ContentType='text/html',
+                          ContentEncoding='gzip',
+                          CacheControl='max-age=%s' % app_config.DEFAULT_MAX_AGE)
 
 
 def lambda_handler(event, context):
     """
     authomatic access to google docs
     """
-    #TODO
-    # Copy recursively from staging to production changing acl
-    copy_stage_to_prod()
-    # Generate required context for template
-    # Generate final files and upload to S3
-    upload_template_contents(context, 'parent.html', 'index.html')
+    try:
+        logger.info('Start publishing factcheck')
+        # Copy recursively from staging to production changing acl
+        copy_stage_to_prod()
+        # Generate required context for template
+        context = make_context()
+        # Generate final files and upload to S3
+        upload_template_contents(context, 'parent.html', 'index.html')
+        logger.info('Generated new index template. Execution successful')
+        return True
+    except Exception, e:
+        logger.error('Failed execution of lambda function. reason: %s' % (e))
+        return False
