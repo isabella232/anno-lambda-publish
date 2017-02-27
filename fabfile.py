@@ -129,7 +129,7 @@ def render(name):
 
 
 @task
-def deploy(name, function='anno-docs-lambda-stage'):
+def deploy(name, function='anno-docs-publish'):
     execute('render', name)
     command = 'aws lambda update-function-code'
     command += ' --zip-file=fileb://zip/%s.zip' % (name)
