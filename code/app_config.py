@@ -14,7 +14,6 @@ LOG_FORMAT = '%(levelname)s:%(name)s:%(asctime)s: %(message)s'
 LOG_LEVEL = logging.INFO
 
 PREVIEW_FACTCHECK = os.environ.get('PREVIEW_FACTCHECK')
-CURRENT_FACTCHECK = os.environ.get('CURRENT_FACTCHECK')
 FACTCHECKS_DIRECTORY_PREFIX = 'factchecks/'
 DEPLOYMENT_TARGET = 'production'
 AUTOINIT_LOADER = False

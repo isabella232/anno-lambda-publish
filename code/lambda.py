@@ -19,7 +19,7 @@ logging.getLogger('botocore').setLevel(logging.WARNING)
 env = Environment(loader=FileSystemLoader('templates'))
 
 
-def copy_stage_to_prod():
+def copy_stage_to_prod(CURRENT_FACTCHECK):
     """
     copy recursively changing the acl accordingly
     """
@@ -30,7 +30,7 @@ def copy_stage_to_prod():
     s3_dst = "s3://%s/%s%s" % (
         app_config.DST_BUCKET,
         app_config.FACTCHECKS_DIRECTORY_PREFIX,
-        app_config.CURRENT_FACTCHECK)
+        CURRENT_FACTCHECK)
     command = ['./aws', 's3', 'cp', '--acl', 'public-read', '--recursive',
                '--quiet', s3_src, s3_dst]
     try:
@@ -41,7 +41,7 @@ def copy_stage_to_prod():
         raise e
 
 
-def make_context():
+def make_context(CURRENT_FACTCHECK):
     """
     make required context from app_config
     """
@@ -49,7 +49,7 @@ def make_context():
     context['DEPLOYMENT_TARGET'] = app_config.DEPLOYMENT_TARGET
     context['FACTCHECKS_DIRECTORY_PREFIX'] = app_config.FACTCHECKS_DIRECTORY_PREFIX
     context['PRODUCTION_S3_BUCKET'] = app_config.DST_BUCKET
-    context['CURRENT_FACTCHECK'] = app_config.CURRENT_FACTCHECK
+    context['CURRENT_FACTCHECK'] = CURRENT_FACTCHECK
     context['AUTOINIT_LOADER'] = app_config.AUTOINIT_LOADER
     return context
 
@@ -71,7 +71,7 @@ def upload_template_contents(context, template, s3filename=None):
     dst_bucket = s3.Bucket(app_config.DST_BUCKET)
     dst_key = '%s/%s/%s' % (
         app_config.FACTCHECKS_DIRECTORY_PREFIX,
-        app_config.CURRENT_FACTCHECK,
+        context['CURRENT_FACTCHECK'],
         s3filename)
     dst_bucket.put_object(Key=dst_key,
                           Body=f.read(),
@@ -84,12 +84,20 @@ def lambda_handler(event, context):
     """
     authomatic access to google docs
     """
+    # Get Data from request
+    try:
+        CURRENT_FACTCHECK = event['CURRENT_FACTCHECK']
+    except KeyError:
+        logger.error("Could not retrieve data from incoming request %s" % (
+            event))
+        return False
+    # Process data and publish factcheck
     try:
         logger.info('Start publishing factcheck')
         # Copy recursively from staging to production changing acl
-        copy_stage_to_prod()
+        copy_stage_to_prod(CURRENT_FACTCHECK)
         # Generate required context for template
-        context = make_context()
+        context = make_context(CURRENT_FACTCHECK)
         # Generate final files and upload to S3
         upload_template_contents(context, 'parent.html', 'index.html')
         logger.info('Generated new index template. Execution successful')
