@@ -37,8 +37,9 @@ def copy_stage_to_prod(CURRENT_FACTCHECK):
         subprocess.check_output(command, stderr=subprocess.STDOUT)
         logger.info('Copied recursively from stage')
     except subprocess.CalledProcessError, e:
-        logger.error(e.output)
-        raise e
+        logger.error('Subprocess Error: %s' % e.output)
+        raise app_config.UserException('[InternalServerError]: %s' % (
+            'awscli error'))
 
 
 def make_context(CURRENT_FACTCHECK):
@@ -77,20 +78,20 @@ def upload_template_contents(context, template, s3filename=None):
                           Body=f.read(),
                           ContentType='text/html',
                           ContentEncoding='gzip',
-                          CacheControl='max-age=%s' % app_config.DEFAULT_MAX_AGE)
+                          CacheControl='max-age=%s' % (
+                              app_config.DEFAULT_MAX_AGE))
 
 
 def lambda_handler(event, context):
     """
     authomatic access to google docs
     """
-    # Get Data from request
+    # Get Data from request
     try:
         CURRENT_FACTCHECK = event['CURRENT_FACTCHECK']
     except KeyError:
-        logger.error("Could not retrieve data from incoming request %s" % (
-            event))
-        return False
+        msg = 'Did not find needed params in %s' % (event)
+        raise app_config.UserException('[BadRequest]: %s' % msg)
     # Process data and publish factcheck
     try:
         logger.info('Start publishing factcheck')
@@ -101,7 +102,13 @@ def lambda_handler(event, context):
         # Generate final files and upload to S3
         upload_template_contents(context, 'parent.html', 'index.html')
         logger.info('Generated new index template. Execution successful')
-        return True
+        return {'message': 'Factcheck published successfully'}
+    except app_config.UserException, e:
+        logger.error('Exit with controlled exception %s' % e)
+        raise
     except Exception, e:
-        logger.error('Failed execution of lambda function. reason: %s' % (e))
-        return False
+        if isinstance(e, app_config.UserException):
+            raise
+        else:
+            logger.error('Failed lambda function. reason: %s' % (e))
+            raise Exception('[InternalServerError]: Unexpected Error')

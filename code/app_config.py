@@ -17,3 +17,12 @@ PREVIEW_FACTCHECK = os.environ.get('PREVIEW_FACTCHECK')
 FACTCHECKS_DIRECTORY_PREFIX = 'factchecks/'
 DEPLOYMENT_TARGET = 'production'
 AUTOINIT_LOADER = False
+
+
+# Exception Handling
+class UserException(Exception):
+    def __init__(self, value):
+        self.value = value
+
+    def __str__(self):
+        return str(self.value)
