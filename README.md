@@ -39,6 +39,12 @@ The project contains the following folders and important files:
 Bootstrap the project
 ---------------------
 
+Create a lambda function inside AWS using the AWS Console and write down the name you gave to that function and
+
+Also write down the name ot the handler you used.
+
+For example if you have used `lambda.lambda_handler` then you will need to create a file on `code` called `lambda.py` that should have a function with name `lambda_handler` in it, that receives as arguments an `event` and a `context`. That will be the entry point for your lambda execution.
+
 To bootstrap the project:
 
 ```
@@ -63,7 +69,7 @@ fab sync_anno_docs_files
 * Finally run:
 
 ```
-fab deploy:code,function=FUNCTION_NAME
+fab deploy:function=FUNCTION_NAME
 ```
 
 Where `FUNCTION_NAME` is the name of the created lambda function

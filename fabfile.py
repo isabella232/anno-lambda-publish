@@ -108,14 +108,14 @@ def render(name):
             execute('generateVirtualEnvironment', name)
         try:
             # First zip all library dependencies
-            zip_contents('code', 'code/venv/lib/python2.7/site-packages',
+            zip_contents('code', '%s/venv/lib/python2.7/site-packages' % name,
                          ['.git'], ['.pyc'], 'w')
             # Add source files
-            zip_contents('code', 'code',
+            zip_contents('code', name,
                          ['venv'], ['.pyc'], 'a')
 
             # Tweak aws shebang
-            aws_path = 'code/venv/bin/aws'
+            aws_path = '%s/venv/bin/aws' % name
             _tweak_aws_command(aws_path)
             # Add tweaked aws command line tool to zipfile
             zip_file('code', aws_path, None, 'a')
@@ -125,11 +125,11 @@ def render(name):
 
     else:
         # Add source files
-        zip_contents('code', 'code', None, ['.pyc'], 'w')
+        zip_contents('code', name, None, ['.pyc'], 'w')
 
 
 @task
-def deploy(name, function='anno-docs-publish'):
+def deploy(name='code', function='anno-docs-publish'):
     execute('render', name)
     command = 'aws lambda update-function-code'
     command += ' --zip-file=fileb://zip/%s.zip' % (name)
