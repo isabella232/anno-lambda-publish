@@ -78,6 +78,7 @@ def upload_template_contents(context, template, s3filename=None):
                           Body=f.read(),
                           ContentType='text/html',
                           ContentEncoding='gzip',
+                          ACL='public-read',
                           CacheControl='max-age=%s' % (
                               app_config.DEFAULT_MAX_AGE))
 

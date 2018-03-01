@@ -78,7 +78,7 @@ def generateVirtualEnvironment(name):
     """
     INPUT_PATH = os.path.join(cwd, name)
     with lcd(INPUT_PATH):
-        command = 'virtualenv --no-site-packages venv'
+        command = 'virtualenv -p `which python2` --no-site-packages venv'
         local(command)
     with lvirtualenv(name):
         local('pip install -r requirements.txt')
